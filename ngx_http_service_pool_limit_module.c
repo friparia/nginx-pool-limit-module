@@ -257,9 +257,10 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
       ngx_rbtree_insert(ctx->rbtree, node);
       ngx_shmtx_unlock(&shpool->mutex);
 
-      event_data = ngx_slab_alloc(shpool, sizeof(ngx_http_service_pool_limit_event_data_t));
-      event_log = ngx_slab_alloc(shpool, sizeof(ngx_log_t));
-      stop_service_event = ngx_slab_alloc(shpool, sizeof(ngx_event_t));
+      event_data = ngx_slab_alloc_locked(shpool, sizeof(ngx_http_service_pool_limit_event_data_t));
+      event_log = ngx_slab_alloc_locked(shpool, sizeof(ngx_log_t));
+      stop_service_event = ngx_slab_alloc_locked(shpool, sizeof(ngx_event_t));
+
       event_data->node = node;
       event_data->shm_zone = splcf->shm_zone;
       stop_service_event->data = event_data;
@@ -275,17 +276,18 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
   }
 
   ngx_shmtx_unlock(&shpool->mutex);
-  event_data = ngx_slab_alloc(shpool, sizeof(ngx_http_service_pool_limit_event_data_t));
-  event_log = ngx_slab_alloc(shpool, sizeof(ngx_log_t));
-  stop_service_event = ngx_slab_alloc(shpool, sizeof(ngx_event_t));
+  event_data = ngx_slab_alloc_locked(shpool, sizeof(ngx_http_service_pool_limit_event_data_t));
+  event_log = ngx_slab_alloc_locked(shpool, sizeof(ngx_log_t));
+  stop_service_event = ngx_slab_alloc_locked(shpool, sizeof(ngx_event_t));
+
   event_data->node = node;
   event_data->shm_zone = splcf->shm_zone;
+  ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "SERVICE POOL: renew-timer!");
   stop_service_event->data = event_data;
   stop_service_event->timer_set = 0;
   stop_service_event->log = event_log;
   stop_service_event->handler = ngx_service_pool_limit_event_expire_handler;
   ngx_event_add_timer(stop_service_event, timeout * 1000);
-  ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "SERVICE POOL: renew-timer!");
   return NGX_DECLINED;
 }
 
