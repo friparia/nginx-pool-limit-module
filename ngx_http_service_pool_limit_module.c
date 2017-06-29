@@ -195,9 +195,7 @@ static void ngx_service_pool_limit_event_expire_handler(ngx_event_t *ev){
   spl = (ngx_http_service_pool_limit_node_t *) &node->color;
   shpool = (ngx_slab_pool_t *) shm_zone->shm.addr;
   ngx_shmtx_lock(&shpool->mutex);
-  printf("clean called! %u %d %d\n", (unsigned int)spl->ref_cnt, (unsigned int)time(0), ngx_getpid());
   if(spl->ref_cnt == 1){
-    printf("deleted!\n");
     (*ctx->conn)--;
     ngx_rbtree_delete(ctx->rbtree, node);
     ngx_slab_free_locked(shpool, node);
@@ -205,7 +203,6 @@ static void ngx_service_pool_limit_event_expire_handler(ngx_event_t *ev){
     ngx_slab_free_locked(shpool, ev->log);
     ngx_slab_free_locked(shpool, ev);
   }else{
-    printf("no deleted!\n, %d", ngx_getpid());
     spl->ref_cnt--;
   }
   ngx_shmtx_unlock(&shpool->mutex);
@@ -329,15 +326,14 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
       spl->timer_key = timer_key;
       ngx_rbtree_insert(ctx->rbtree, node);
 
-      printf("insert %p \n", &stop_service_event->timer);
       ngx_rbtree_insert(&ngx_event_timer_rbtree, &stop_service_event->timer);
-      /* ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "SERVICE POOL: insert key-%d pid-%d event-%d", timer_key, ngx_getpid(), stop_service_event); */
+      ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "SERVICE POOL: insert key-%d pid-%d event-%d", timer_key, ngx_getpid(), stop_service_event);
 
       ngx_shmtx_unlock(&shpool->mutex);
       return NGX_DECLINED;
     }
 
-    /* ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "SERVICE POOL: blocked! limit-%d, conn-%d", limit, *ctx->conn); */
+    ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "SERVICE POOL: blocked! limit-%d, conn-%d", limit, *ctx->conn);
     ngx_shmtx_unlock(&shpool->mutex);
     return 503;
   }
