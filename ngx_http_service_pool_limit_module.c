@@ -230,6 +230,10 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
   ngx_http_service_pool_limit_node_t * spl;
   ngx_msec_t      timer_key;
   ngx_msec_int_t  timer_diff;
+  ngx_table_elt_t *h;
+  ngx_str_t header_key = ngx_string("Connection-In-Pool");
+  u_char connection_count[64] = {0};
+  ngx_str_t header_value;
 
   splcf = ngx_http_get_module_srv_conf(r, ngx_http_service_pool_limit_module);
   limit = splcf->limit;
@@ -241,7 +245,9 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
 
   ctx = splcf->shm_zone->data;
 
-  ngx_log_error(NGX_LOG_EMERG, r->connection->log, 0, "SERVICE POOL: pid-%d, conn-%d, limit-%d, timeout-%d", ngx_getpid() ,*ctx->conn, limit, timeout);
+
+
+  ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "SERVICE POOL: pid-%d, conn-%d, limit-%d, timeout-%d", ngx_getpid() ,*ctx->conn, limit, timeout);
 
   switch (r->connection->sockaddr->sa_family){
   case AF_INET:
@@ -264,6 +270,16 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
 
   node = ngx_http_service_pool_limit_lookup(ctx->rbtree, hash, key, len);
 
+  ngx_sprintf(connection_count, "%d", *ctx->conn);
+  header_value.len = ngx_strlen(connection_count);
+  header_value.data = connection_count;
+  h = ngx_list_push(&r->headers_out.headers);
+  if(h != NULL){
+    h->hash = 1;
+    h->key = header_key;
+    h->value = header_value;
+  }
+
   if(node == NULL){
     if(*ctx->conn < limit){
       n = offsetof(ngx_rbtree_node_t, color)
@@ -275,7 +291,7 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
       node = ngx_slab_alloc_locked(shpool, n);
       if (node == NULL){
         ngx_shmtx_unlock(&shpool->mutex);
-        return 503;
+        return NGX_ERROR;
       }
 
 
@@ -297,20 +313,20 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
 
       if (event_data == NULL){
         ngx_shmtx_unlock(&shpool->mutex);
-        return 503;
+        return NGX_ERROR;
       }
 
       event_log = ngx_slab_alloc_locked(shpool, sizeof(ngx_log_t));
 
       if (event_log == NULL){
         ngx_shmtx_unlock(&shpool->mutex);
-        return 503;
+        return NGX_ERROR;
       }
 
       stop_service_event = ngx_slab_alloc_locked(shpool, sizeof(ngx_event_t));
       if (stop_service_event == NULL){
         ngx_shmtx_unlock(&shpool->mutex);
-        return 503;
+        return NGX_ERROR;
       }
 
       event_data->node = node;
@@ -360,17 +376,17 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
     event_data = ngx_slab_alloc_locked(shpool, sizeof(ngx_http_service_pool_limit_event_data_t));
     if (event_data == NULL){
       ngx_shmtx_unlock(&shpool->mutex);
-      return 503;
+      return NGX_ERROR;
     }
     event_log = ngx_slab_alloc_locked(shpool, sizeof(ngx_log_t));
     if (event_log == NULL){
       ngx_shmtx_unlock(&shpool->mutex);
-      return 503;
+      return NGX_ERROR;
     }
     stop_service_event = ngx_slab_alloc_locked(shpool, sizeof(ngx_event_t));
     if (stop_service_event == NULL){
       ngx_shmtx_unlock(&shpool->mutex);
-      return 503;
+      return NGX_ERROR;
     }
 
 
