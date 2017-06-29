@@ -215,7 +215,7 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
   ngx_uint_t timeout;
   ngx_http_service_pool_limit_ctx_t *ctx;
   u_char *key;
-  u_char len;
+  u_char len = 0;
   struct sockaddr_in *sin;
   struct sockaddr_in6 *sin6;
   ngx_slab_pool_t *shpool;
@@ -242,10 +242,9 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
   if(timeout == (ngx_uint_t) NGX_CONF_UNSET){
     timeout = 60;
   }
+  key = ngx_palloc(r->pool, 32);
 
   ctx = splcf->shm_zone->data;
-
-
 
   ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "SERVICE POOL: pid-%d, conn-%d, limit-%d, timeout-%d", ngx_getpid() ,*ctx->conn, limit, timeout);
 
