@@ -236,6 +236,10 @@ static ngx_int_t ngx_http_service_pool_limit_handler(ngx_http_request_t* r){
   ngx_str_t header_value;
 
   splcf = ngx_http_get_module_srv_conf(r, ngx_http_service_pool_limit_module);
+  if(splcl->shm_zone == NULL){
+    return NGX_DECLINED;
+  }
+
   limit = splcf->limit;
   timeout = splcf->timeout;
 
